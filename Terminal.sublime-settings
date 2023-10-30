@@ -1,0 +1,7 @@
+// These settings override both User and Default settings for the C++ syntax
+{
+	// Terminal operator. e.g: cmd.exe, powershell.exe, gnome-terminal, etc
+	"emulator": "",
+	// Environment variable
+	"envs": null,
+}

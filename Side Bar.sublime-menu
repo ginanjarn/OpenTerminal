@@ -1,0 +1,18 @@
+[
+	{
+		"id": "terminal",
+		"caption": "-"
+	},
+	{
+		"args":
+		{
+			"paths":
+			[
+			]
+		},
+		"caption": "Open Terminal",
+		"command": "open_terminal",
+		"id": "terminal",
+		"mnemonic": "T"
+	}
+]
