@@ -21,9 +21,9 @@ def get_workspace_folder(view: sublime.View) -> Optional[Path]:
         return None
 
     folders = view.window().folders()
-    including_folder = [f for f in folders if view.file_name().startswith(f)]
-    if including_folder:
-        return Path(max(including_folder))
+    candidates = [f for f in folders if file_name.startswith(f)]
+    if candidates:
+        return Path(max(candidates))
 
     return Path(file_name).parent
 
@@ -32,29 +32,31 @@ class OpenTerminalCommand(sublime_plugin.WindowCommand):
     def run(
         self,
         path: str = "",
-        settings_name="",
-        *,
-        # next argument is defined in 'Side Bar.sublime-menu'
-        paths: List[str] = None,
+        settings_name: str = "",
+        # call from 'Side Bar.sublime-menu'
+        dirs: List[str] = None,
     ):
         # Load priority
-        # 1. sidebar menu
-        if paths:
-            path = Path(paths[0])
-        # 2. defined path
-        elif path:
+        # 1. defined path
+        if path:
             path = Path(path)
+
+        # 2. sidebar menu
+        elif dirs:
+            path = Path(dirs[0])
+
         # 3. active view
         elif folder := get_workspace_folder(self.window.active_view()):
             path = Path(folder)
+
+        # default open user home directory
         else:
             path = Path().home()
 
         # Ensure if the path is directory or 'NotADirectoryError' will be raised
-        if path.is_file():
-            path = path.parent
-        elif not path.exists():
-            path = Path().home()
+        if not path.is_dir():
+            print(f"'{path!s}' is not a directory!")
+            return
 
         self.open_terminal(path, settings_name)
 
@@ -65,4 +67,18 @@ class OpenTerminalCommand(sublime_plugin.WindowCommand):
         emulator = settings.get("emulator") or DEFAULT_TERMINAL
         envs = settings.get("envs") or None
 
-        subprocess.Popen([emulator], cwd=path, env=envs)
+        try:
+            subprocess.Popen([emulator], cwd=path, env=envs)
+        except Exception:
+            print(
+                f"Error open '{emulator!s}'."
+                " Please set the terminal emulator in settings."
+            )
+
+    def is_visible(self, dirs: List[str] = None):
+        # if not called from 'Side Bar.sublime-menu'
+        if dirs is None:
+            return True
+
+        # only one directory selected
+        return len(dirs) == 1
