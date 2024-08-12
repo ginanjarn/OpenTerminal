@@ -28,6 +28,21 @@ def get_workspace_folder(view: sublime.View) -> Optional[Path]:
     return Path(file_name).parent
 
 
+EnvironType = dict
+
+
+def environ_update(old: EnvironType, new: EnvironType) -> EnvironType:
+    """"""
+    if not new:
+        return old
+
+    temp = dict(old)
+    os_path = os.pathsep.join([old["PATH"], new["PATH"]])
+    temp.update(new)
+    temp["PATH"] = os_path
+    return temp
+
+
 class OpenTerminalCommand(sublime_plugin.WindowCommand):
     def run(
         self,
@@ -65,7 +80,9 @@ class OpenTerminalCommand(sublime_plugin.WindowCommand):
         settings = sublime.load_settings(settings_name)
 
         emulator = settings.get("emulator") or DEFAULT_TERMINAL
-        envs = settings.get("envs") or None
+        settings_envs = settings.get("envs") or None
+        # update current system environment
+        envs = environ_update(os.environ, settings_envs)
 
         try:
             subprocess.Popen([emulator], cwd=path, env=envs)
