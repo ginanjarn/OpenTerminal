@@ -1,6 +1,7 @@
 """open terminal"""
 
 import os
+import platform
 import subprocess
 from pathlib import Path
 from typing import Optional, List
@@ -8,11 +9,13 @@ from typing import Optional, List
 import sublime
 import sublime_plugin
 
-DEFAULT_TERMINAL = ""
-if os.name == "nt":
-    DEFAULT_TERMINAL = "cmd.exe"
-else:
-    DEFAULT_TERMINAL = "gnome-terminal"
+TERMINAL_EMULATORS = {
+    "Windows": "cmd",
+    "Darwin": "zsh",
+    "Linux": "gnome-terminal",
+}
+
+DEFAULT_TERMINAL = TERMINAL_EMULATORS[platform.system()]
 
 
 def get_workspace_folder(view: sublime.View) -> Optional[Path]:
@@ -36,10 +39,22 @@ def environ_update(old: EnvironType, new: EnvironType) -> EnvironType:
     if not new:
         return old
 
+    # Keep old data unchanged
     temp = dict(old)
-    os_path = os.pathsep.join([old["PATH"], new["PATH"]])
+
+    # PATH lookup start from begin to end
+    paths = new["PATH"].split(os.pathsep) + old["PATH"].split(os.pathsep)
+
+    temp_paths = []
+    for path in paths:
+        if path in temp_paths:
+            # remove PATH redefinition
+            continue
+
+        temp_paths.append(path)
+
     temp.update(new)
-    temp["PATH"] = os_path
+    temp["PATH"] = os.pathsep.join(temp_paths)
     return temp
 
 
@@ -87,9 +102,11 @@ class OpenTerminalCommand(sublime_plugin.WindowCommand):
         try:
             subprocess.Popen([emulator], cwd=path, env=envs)
         except Exception:
-            print(
-                f"Error open '{emulator!s}'."
-                " Please set the terminal emulator in settings."
+            sublime.error_message(
+                "Error open terminal emulator!\n\n"
+                "In main menu:\n"
+                "'Preferences' > 'Package Settings' > 'Terminal' > 'Settings'\n\n"
+                "Set the 'emulator' setting with terminal emulator executable path."
             )
 
     def is_visible(self, dirs: List[str] = None):
