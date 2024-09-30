@@ -2,6 +2,7 @@
 
 import os
 import platform
+import shlex
 import subprocess
 from pathlib import Path
 from typing import Optional, List
@@ -96,17 +97,22 @@ class OpenTerminalCommand(sublime_plugin.WindowCommand):
 
         emulator = settings.get("emulator") or DEFAULT_TERMINAL
         settings_envs = settings.get("envs") or None
+        arguments = settings.get("arguments") or ""
         # update current system environment
         envs = environ_update(os.environ, settings_envs)
 
         try:
-            subprocess.Popen([emulator], cwd=path, env=envs)
+            command = [emulator] + shlex.split(arguments)
+            subprocess.Popen(command, cwd=path, env=envs)
         except Exception:
+            print(f"Error open terminal : {shlex.join(command)!r}")
             sublime.error_message(
-                "Error open terminal emulator!\n\n"
-                "In main menu:\n"
-                "'Preferences' > 'Package Settings' > 'Terminal' > 'Settings'\n\n"
-                "Set the 'emulator' setting with terminal emulator executable path."
+                "Error open terminal emulator!\n"
+                "\n"
+                "From menu 'Preferences' >"
+                " 'Package Settings' > 'Terminal' > 'Settings'\n"
+                "\n"
+                "Set the 'emulator' property with your prefered emulator."
             )
 
     def is_visible(self, dirs: List[str] = None):
