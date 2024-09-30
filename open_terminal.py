@@ -13,7 +13,7 @@ import sublime_plugin
 TERMINAL_EMULATORS = {
     "Windows": "cmd",
     "Darwin": "zsh",
-    "Linux": "gnome-terminal",
+    "Linux": "xterm",
 }
 
 DEFAULT_TERMINAL = TERMINAL_EMULATORS[platform.system()]
@@ -32,10 +32,10 @@ def get_workspace_folder(view: sublime.View) -> Optional[Path]:
     return Path(file_name).parent
 
 
-EnvironType = dict
+EnvironmentType = dict
 
 
-def environ_update(old: EnvironType, new: EnvironType) -> EnvironType:
+def environ_update(old: EnvironmentType, new: EnvironmentType) -> EnvironmentType:
     """"""
     if not new:
         return old
