@@ -63,7 +63,6 @@ class OpenTerminalCommand(sublime_plugin.WindowCommand):
     def run(
         self,
         path: str = "",
-        settings_name: str = "",
         # call from 'Side Bar.sublime-menu'
         dirs: List[str] = None,
     ):
@@ -89,15 +88,15 @@ class OpenTerminalCommand(sublime_plugin.WindowCommand):
             print(f"'{path!s}' is not a directory!")
             return
 
-        self.open_terminal(path, settings_name)
+        self.open_terminal(path)
 
-    def open_terminal(self, path: Path, settings_name: str = ""):
-        settings_name = settings_name or "Terminal.sublime-settings"
-        settings = sublime.load_settings(settings_name)
+    def open_terminal(self, path: Path):
+        settings = sublime.load_settings("Terminal.sublime-settings")
+        syntax_settings = self.syntax_settings()
 
         emulator = settings.get("emulator") or DEFAULT_TERMINAL
-        settings_envs = settings.get("envs") or None
         arguments = settings.get("arguments") or ""
+        settings_envs = settings.get("envs") or syntax_settings.get("envs") or None
         # update current system environment
         envs = environ_update(os.environ, settings_envs)
 
@@ -114,6 +113,12 @@ class OpenTerminalCommand(sublime_plugin.WindowCommand):
                 "\n"
                 "Set the 'emulator' property with your prefered emulator."
             )
+
+    def syntax_settings(self) -> sublime.Settings:
+        view = self.window.active_view()
+        file_name = Path(view.settings().get("syntax")).stem
+        settings_name = f"{file_name}.sublime-settings"
+        return sublime.load_settings(settings_name)
 
     def is_visible(self, dirs: List[str] = None):
         # if not called from 'Side Bar.sublime-menu'
