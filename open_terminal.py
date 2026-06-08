@@ -59,66 +59,75 @@ def environ_update(old: EnvironmentType, new: EnvironmentType) -> EnvironmentTyp
     return temp
 
 
+def fallback_path(path: Path) -> Path:
+    if path.is_dir():
+        return path
+    return Path().home()
+
+
+SETTINGS_BASENAME = "Terminal.sublime-settings"
+
+
 class OpenTerminalCommand(sublime_plugin.WindowCommand):
     def run(
         self,
         path: str = "",
-        # call from 'Side Bar.sublime-menu'
+        # passed from 'Side Bar.sublime-menu'
         dirs: List[str] = None,
     ):
-        # Load priority
-        # 1. defined path
+        entry_path = ""
         if path:
-            path = Path(path)
-
-        # 2. sidebar menu
+            entry_path = path
         elif dirs:
-            path = Path(dirs[0])
-
-        # 3. active view
-        elif folder := get_workspace_folder(self.window.active_view()):
-            path = Path(folder)
-
-        # default open user home directory
+            # from 'Side Bar.sublime-menu'
+            entry_path = dirs[0]
         else:
-            path = Path().home()
+            # from active view
+            entry_path = get_workspace_folder(self.window.active_view())
 
-        # Ensure if the path is directory or 'NotADirectoryError' will be raised
-        if not path.is_dir():
-            print(f"'{path!s}' is not a directory!")
-            return
+        envs = self.get_envs(dirs)
+        emulator = self.get_emulator()
+        self.open_terminal(emulator, envs, entry_path)
 
-        self.open_terminal(path)
-
-    def open_terminal(self, path: Path):
-        settings = sublime.load_settings("Terminal.sublime-settings")
-        syntax_settings = self.syntax_settings()
-
-        emulator = settings.get("emulator") or DEFAULT_TERMINAL
-        arguments = settings.get("arguments") or ""
-        settings_envs = settings.get("envs") or syntax_settings.get("envs") or None
-        # update current system environment
-        envs = environ_update(os.environ, settings_envs)
-
+    def open_terminal(
+        self,
+        command: List[str],
+        env: Optional[dict] = None,
+        entry_path: Optional[str] = "",
+    ):
+        env = environ_update(os.environ, env)
+        entry_path = fallback_path(Path(entry_path))
         try:
-            command = [emulator] + shlex.split(arguments)
-            subprocess.Popen(command, cwd=path, env=envs)
-        except Exception:
-            print(f"Error open terminal : {shlex.join(command)!r}")
-            sublime.error_message(
-                "Error open terminal emulator!\n"
-                "\n"
-                "From menu 'Preferences' >"
-                " 'Package Settings' > 'Terminal' > 'Settings'\n"
-                "\n"
-                "Set the 'emulator' property with your prefered emulator."
-            )
+            subprocess.Popen(command, cwd=entry_path, env=env)
+        except Exception as err:
+            message = f"Error open terminal.\n   {shlex.join(command)}\n\n\nError: {err}"
+            sublime.error_message(message)
 
-    def syntax_settings(self) -> sublime.Settings:
+    def get_emulator(self) -> List[str]:
+        settings = sublime.load_settings(SETTINGS_BASENAME)
+        emulator = settings.get("emulator") or DEFAULT_TERMINAL
+        args = settings.get("arguments", "")
+        return [emulator] + shlex.split(args)
+
+    def get_envs(self, selected_dirs: List[str] = None):
+        def get_envs(basename: str) -> Optional[dict]:
+            settings = sublime.load_settings(basename)
+            return settings.get("envs", None)
+
+        if envs := get_envs(SETTINGS_BASENAME):
+            return envs
+
         view = self.window.active_view()
-        file_name = Path(view.settings().get("syntax")).stem
-        settings_name = f"{file_name}.sublime-settings"
-        return sublime.load_settings(settings_name)
+        if selected_dirs:
+            # ensure selected dirs is parent of active view path
+            file_name = view.file_name()
+            if not any((d for d in selected_dirs if file_name.startswith(d))):
+                return None
+
+        # get environemnt from active view syntax settings
+        syntax = view.settings().get("syntax")
+        settings_name = f"{Path(syntax).stem}.sublime-settings"
+        return get_envs(settings_name)
 
     def is_visible(self, dirs: List[str] = None):
         # if not called from 'Side Bar.sublime-menu'
