@@ -118,6 +118,9 @@ class OpenTerminalCommand(sublime_plugin.WindowCommand):
             return envs
 
         view = self.window.active_view()
+        if not view.file_name():
+            return None
+
         if selected_dirs:
             # ensure selected dirs is parent of active view path
             file_name = view.file_name()
